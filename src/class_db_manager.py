@@ -47,7 +47,8 @@ class DBManager:
         """ Получает список вакансий с зарплатой выше средней по всем вакансий """
 
         result = self.__execute("""
-            SELECT * FROM vacancies
+            SELECT employer_name, vacancy_name, salary_from, salary_to, vacancy_url FROM vacancies
+            JOIN employers USING (employer_id)
             WHERE salary_from > (SELECT (AVG(salary_from) + AVG(salary_to)) / 2 FROM vacancies) 
             OR salary_to > (SELECT (AVG(salary_from) + AVG(salary_to)) / 2 FROM vacancies)
         """)
@@ -64,12 +65,17 @@ class DBManager:
         """
         words_list = words.lower().split(",")
         query = f"""
-        SELECT * FROM vacancies  
+        SELECT employer_name, vacancy_name, salary_from, salary_to, vacancy_url FROM vacancies
+        JOIN employers USING (employer_id) 
         WHERE LOWER(vacancy_name) LIKE '%{words_list[0].strip()}%' 
         """
         for i in range(1, len(words_list)):
             query += f"OR LOWER(vacancy_name) LIKE '%{words_list[i].strip()}%'"
+
         result = self.__execute(query)
+
+        if len(result) == 0:
+            raise AttributeError("По вашему запросу вакансий не найдено.")
 
         return result
 
@@ -115,7 +121,10 @@ class DBManager:
 
                     employer_id = vacancy_list[0].get("employer").get("id")
                     employer_name = vacancy_list[0].get("employer").get("name")
-                    number_of_vacancies = len(vacancy_list)
+                    number_of_vacancies = 0
+                    for vacancy in vacancy_list:
+                        if vacancy.get("salary").get("currency") == "RUR":
+                            number_of_vacancies += 1
 
                     cur.execute(
                         """
@@ -155,3 +164,18 @@ class DBManager:
                     return results
         finally:
             conn.close()
+
+    @staticmethod
+    def printing(vacancies: list[tuple[Any, ...]]) -> None:
+        for vacancy in vacancies:
+            vacancy_info = f"{vacancy[0]}, {vacancy[1]}, зарплата "
+
+            if vacancy[2] is not None:
+                vacancy_info += f"от {vacancy[2]} "
+
+            if vacancy[3] is not None:
+                vacancy_info += f"до {vacancy[3]} "
+
+            vacancy_info += vacancy[4]
+
+            print(vacancy_info)
