@@ -1,4 +1,5 @@
 import psycopg2
+from typing import Any
 
 
 class DBManager:
@@ -6,14 +7,14 @@ class DBManager:
 
     params: dict
 
-    def __init__(self, params: dict):
+    def __init__(self, params: dict[str: str]) -> None:
         """
         Конструктор класса. Задаем значения атрибутам экземпляра класса.
         :param params: Параметры для подключения к базе данных (host, user, password, port)
         """
         self.__params = params
 
-    def get_companies_and_vacancies_count(self):
+    def get_companies_and_vacancies_count(self) -> list[tuple[Any, ...]]:
         """ Получает список всех компаний и количество вакансий у каждой компании """
         result = self.__execute("""
             SELECT employer_name, number_of_vacancies
@@ -22,7 +23,7 @@ class DBManager:
 
         return result
 
-    def get_all_vacancies(self) -> list:
+    def get_all_vacancies(self) -> list[tuple[Any, ...]]:
         """ Получает список всех вакансий """
         result = self.__execute("""
             SELECT employer_name, vacancy_name, salary_from, salary_to, vacancy_url
@@ -42,7 +43,7 @@ class DBManager:
 
         return result
 
-    def get_vacancies_with_higher_salary(self) -> list:
+    def get_vacancies_with_higher_salary(self) -> list[tuple[Any, ...]]:
         """ Получает список вакансий с зарплатой выше средней по всем вакансий """
 
         result = self.__execute("""
@@ -53,7 +54,7 @@ class DBManager:
 
         return result
 
-    def get_vacancies_with_keyword(self, words: str) -> list:
+    def get_vacancies_with_keyword(self, words: str) -> list[tuple[Any, ...]]:
         """
         Получает список всех вакансий, в названии которых содержатся переданные в метод слова.
         Для поиска отдельно по нескольким словам - слова нужно писать через запятую.
@@ -100,7 +101,7 @@ class DBManager:
             );
         """)
 
-    def save_data_to_database(self, data: list) -> None:
+    def save_data_to_database(self, data: list[dict[str: Any]]) -> None:
         """
         Заполняет таблицы 'employers' и 'vacancies' данными
         :param data: Список с данными полученными с hh.ru

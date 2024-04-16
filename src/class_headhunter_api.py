@@ -1,9 +1,17 @@
 import requests
+from typing import Any
 
 
 class HeadHunterAPI:
     """ Класс для работы с API """
-    def __init__(self, employers_ids: list):
+
+    employers_ids: list[str]
+
+    def __init__(self, employers_ids: list[str]) -> None:
+        """
+        Конструктор класса. Задаем значения атрибутам экземпляра класса.
+        :param employers_ids: Список с id компаний
+        """
         self.employers_ids = employers_ids
         self.url = "https://api.hh.ru/vacancies"
         self.params = {
@@ -11,7 +19,7 @@ class HeadHunterAPI:
             "only_with_salary": "true"
         }
 
-    def get_data(self) -> list[dict]:
+    def get_data(self) -> list[dict[str: Any]]:
         """
         Получение данных о вакансиях с hh.ru в формате JSON
         :return: Список с информацией о вакансиях
@@ -21,7 +29,7 @@ class HeadHunterAPI:
         for employer_id in self.employers_ids:
             self.params["employer_id"] = employer_id
 
-            vacancies_data = self.__make_a_requests()
+            vacancies_data = self.__make_a_request()
             data.append(vacancies_data)
 
             pages = vacancies_data.get("pages")
@@ -29,12 +37,12 @@ class HeadHunterAPI:
                 for num in range(1, pages):
                     self.params["page"] = num
 
-                    vacancies_data = self.__make_a_requests()
+                    vacancies_data = self.__make_a_request()
                     data[-1]["items"].extend(vacancies_data.get("items"))
 
         return data
 
-    def __make_a_requests(self) -> dict:
+    def __make_a_request(self) -> dict[str: Any]:
         """ Делает запрос, отрабатывает ошибки и возвращает данные в формате JSON"""
         try:
             response = requests.get(self.url, self.params)

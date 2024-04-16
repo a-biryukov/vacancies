@@ -40,7 +40,7 @@ def main():
 
     # avg_salary = db.get_avg_salary()
     # print(avg_salary)
-    #
+
     # with_higher_salary = db.get_vacancies_with_higher_salary()
     # print(with_higher_salary)
 
