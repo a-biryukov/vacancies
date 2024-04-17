@@ -30,6 +30,7 @@ def main():
     db.create_database()
     db.save_data_to_database(vacancy_data)
 
+    # Интерактив с пользователем
     while True:
         print("")
         user_query = input("1 - Показать список компаний и количество вакансий\n"
@@ -41,6 +42,7 @@ def main():
                            "Для получения данных введите соответствующую цифру: ").strip().lower()
         print("")
 
+        # Вывод данных
         if user_query == "1":
             companies = db.get_companies_and_vacancies_count()
             for company in companies:

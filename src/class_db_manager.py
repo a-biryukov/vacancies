@@ -167,6 +167,10 @@ class DBManager:
 
     @staticmethod
     def printing(vacancies: list[tuple[Any, ...]]) -> None:
+        """
+        Выводит данные в фермате: название компании, название вакансии, закрплата, ссылка на вакансию
+        :param vacancies: список с данными о вакансиях
+        """
         for vacancy in vacancies:
             vacancy_info = f"{vacancy[0]}, {vacancy[1]}, зарплата "
 
