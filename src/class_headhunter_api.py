@@ -40,6 +40,8 @@ class HeadHunterAPI:
                     vacancies_data = self.__make_a_request()
                     data[-1]["items"].extend(vacancies_data.get("items"))
 
+            del self.params["page"]
+
         return data
 
     def __make_a_request(self) -> dict[str: Any]:
