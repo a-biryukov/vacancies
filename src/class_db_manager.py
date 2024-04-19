@@ -7,53 +7,60 @@ class DBManager:
 
     params: dict
 
-    def __init__(self, params: dict[str: str]) -> None:
+    def __init__(self, params: dict[str: str], dbname="headhunter") -> None:
         """
         Конструктор класса. Задаем значения атрибутам экземпляра класса.
         :param params: Параметры для подключения к базе данных (host, user, password, port)
         """
         self.__params = params
+        self.dbname = dbname
+        self.connection = psycopg2.connect(**self.__params, dbname=self.dbname)
+        self.cur = self.connection.cursor()
 
     def get_companies_and_vacancies_count(self) -> list[tuple[Any, ...]]:
         """ Получает список всех компаний и количество вакансий у каждой компании """
-        result = self.__execute("""
+        self.cur.execute("""
             SELECT employer_name, number_of_vacancies
             FROM employers
         """)
+        results = self.cur.fetchall()
 
-        return result
+        return results
 
     def get_all_vacancies(self) -> list[tuple[Any, ...]]:
         """ Получает список всех вакансий """
-        result = self.__execute("""
+        self.cur.execute("""
             SELECT employer_name, vacancy_name, salary_from, salary_to, vacancy_url
             FROM vacancies
             JOIN employers USING (employer_id)
         """)
+        results = self.cur.fetchall()
 
-        return result
+        return results
 
     def get_avg_salary(self) -> int:
         """ Получает среднюю зарплату по вакансиям """
 
-        result = int(self.__execute("""
+        self.cur.execute("""
             SELECT (AVG(salary_from) + AVG(salary_to)) / 2
             FROM vacancies
-        """)[0][0])
+        """)
+        results = int(self.cur.fetchall()[0][0])
 
-        return result
+        return results
 
     def get_vacancies_with_higher_salary(self) -> list[tuple[Any, ...]]:
         """ Получает список вакансий с зарплатой выше средней по всем вакансий """
 
-        result = self.__execute("""
+        self.cur.execute("""
             SELECT employer_name, vacancy_name, salary_from, salary_to, vacancy_url FROM vacancies
             JOIN employers USING (employer_id)
             WHERE salary_from > (SELECT (AVG(salary_from) + AVG(salary_to)) / 2 FROM vacancies) 
             OR salary_to > (SELECT (AVG(salary_from) + AVG(salary_to)) / 2 FROM vacancies)
         """)
+        results = self.cur.fetchall()
 
-        return result
+        return results
 
     def get_vacancies_with_keyword(self, words: str) -> list[tuple[Any, ...]]:
         """
@@ -72,23 +79,28 @@ class DBManager:
         for i in range(1, len(words_list)):
             query += f"OR LOWER(vacancy_name) LIKE '%{words_list[i].strip()}%'"
 
-        result = self.__execute(query)
+        self.cur.execute(query)
+        results = self.cur.fetchall()
 
-        if len(result) == 0:
+        if len(results) == 0:
             raise AttributeError("По вашему запросу вакансий не найдено.")
 
-        return result
+        return results
 
     def create_database(self) -> None:
         """ Создает базу данных 'headhunter' и таблицы 'employers' и 'vacancies' """
+        self.connection.autocommit = True
 
         try:
-            self.__execute("CREATE DATABASE headhunter", dbname="postgres")
+            self.cur.execute("CREATE DATABASE headhunter")
         except psycopg2.errors.DuplicateDatabase:
-            self.__execute("DROP DATABASE headhunter", dbname="postgres")
-            self.__execute("CREATE DATABASE headhunter", dbname="postgres")
+            self.cur.execute("DROP DATABASE headhunter")
+            self.cur.execute("CREATE DATABASE headhunter")
 
-        self.__execute("""
+    def create_tables(self) -> None:
+        """ Создает таблицы 'vacancies' и 'employers' """
+
+        self.cur.execute("""
             CREATE TABLE employers 
             (
                 employer_id INTEGER PRIMARY KEY,
@@ -112,58 +124,40 @@ class DBManager:
         Заполняет таблицы 'employers' и 'vacancies' данными
         :param data: Список с данными полученными с hh.ru
         """
-        conn = psycopg2.connect(**self.__params, dbname="headhunter")
-        conn.autocommit = True
-        try:
-            with conn.cursor() as cur:
-                for employer in data:
-                    vacancy_list = employer.get("items")
 
-                    employer_id = vacancy_list[0].get("employer").get("id")
-                    employer_name = vacancy_list[0].get("employer").get("name")
-                    number_of_vacancies = 0
-                    for vacancy in vacancy_list:
-                        if vacancy.get("salary").get("currency") == "RUR":
-                            number_of_vacancies += 1
+        for employer in data:
+            vacancy_list = employer.get("items")
 
-                    cur.execute(
-                        """
-                        INSERT INTO employers (employer_id, employer_name, number_of_vacancies)
-                        VALUES (%s, %s, %s)
-                        """,
-                        (employer_id, employer_name, number_of_vacancies)
-                    )
+            employer_id = vacancy_list[0].get("employer").get("id")
+            employer_name = vacancy_list[0].get("employer").get("name")
+            number_of_vacancies = 0
+            for vacancy in vacancy_list:
+                if vacancy.get("salary").get("currency") == "RUR":
+                    number_of_vacancies += 1
 
-                    for vacancy in vacancy_list:
-                        if vacancy.get("salary").get("currency") != "RUR":
-                            continue
-                        vacancy_name = vacancy.get("name")
-                        salary_from = vacancy.get("salary").get("from")
-                        salary_to = vacancy.get("salary").get("to")
-                        vacancy_url = vacancy.get("alternate_url")
-                        cur.execute(
-                            """
-                            INSERT INTO vacancies (vacancy_name, salary_from, salary_to, vacancy_url, employer_id)
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (vacancy_name, salary_from, salary_to, vacancy_url, employer_id)
-                        )
-        finally:
-            conn.close()
+            self.cur.execute(
+                """
+                INSERT INTO employers (employer_id, employer_name, number_of_vacancies)
+                VALUES (%s, %s, %s)
+                """,
+                (employer_id, employer_name, number_of_vacancies)
+            )
 
-    def __execute(self, query, dbname="headhunter"):
-        """ Подключение к базе данных """
+            for vacancy in vacancy_list:
+                if vacancy.get("salary").get("currency") != "RUR":
+                    continue
+                vacancy_name = vacancy.get("name")
+                salary_from = vacancy.get("salary").get("from")
+                salary_to = vacancy.get("salary").get("to")
+                vacancy_url = vacancy.get("alternate_url")
 
-        conn = psycopg2.connect(**self.__params, dbname=dbname)
-        conn.autocommit = True
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query)
-                if "SELECT" in query:
-                    results = cur.fetchall()
-                    return results
-        finally:
-            conn.close()
+                self.cur.execute(
+                    """
+                    INSERT INTO vacancies (vacancy_name, salary_from, salary_to, vacancy_url, employer_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (vacancy_name, salary_from, salary_to, vacancy_url, employer_id)
+                )
 
     @staticmethod
     def printing(vacancies: list[tuple[Any, ...]]) -> None:
