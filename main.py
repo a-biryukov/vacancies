@@ -102,7 +102,7 @@ def main():
                 break
 
             else:
-                print("Некорректный ввод. попробуйте еще раз.")
+                print("Некорректный ввод. Попробуйте еще раз.")
                 continue
     finally:
         db_hh.cur.close()
